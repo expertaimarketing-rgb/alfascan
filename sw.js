@@ -1,9 +1,15 @@
 'use strict';
-const V = 'alfascan-v3';
+const V = 'alfascan-v4';
 const SHELL = ['./', 'index.html', 'app.js', 'opencv.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
+// GitHub Pages отдаёт файлы с max-age=600: чтобы не получать устаревшие копии из HTTP-кеша
+// браузера, при установке и обновлении всегда спрашиваем сервер (cache: 'reload' / 'no-cache')
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(V)
+      .then(c => Promise.all(SHELL.map(u => fetch(new Request(u, { cache: 'reload' })).then(r => { if (!r.ok) throw new Error(u); return c.put(u, r); }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -20,7 +26,7 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.open(V).then(async cache => {
       const hit = await cache.match(req, { ignoreSearch: false });
-      const net = fetch(req).then(res => {
+      const net = fetch(req, { cache: 'no-cache' }).then(res => {
         if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
         return res;
       }).catch(() => hit);
