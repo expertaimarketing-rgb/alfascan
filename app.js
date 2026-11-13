@@ -483,8 +483,13 @@ $('#btnShare').onclick = () => {
   const blob = state.pdfBlob; if (!blob) return;
   const file = new File([blob], cleanName($('#fname').value), { type: 'application/pdf' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    toast('Открываю «Поделиться»…');
     navigator.share({ files: [file], title: file.name })
-      .catch(e => { if (e.name !== 'AbortError') { toast('Не удалось поделиться'); console.error(e); } });
+      .then(() => toast('Отправлено'))
+      .catch(e => {
+        if (e.name === 'AbortError') toast('Отменено');
+        else { toast('Не удалось поделиться: ' + e.name); console.error(e); }
+      });
   } else { downloadBlob(blob, file.name); toast('Поделиться не поддерживается, файл скачан'); }
 };
 function downloadBlob(blob, name) {
