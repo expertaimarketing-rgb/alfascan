@@ -444,14 +444,24 @@ function buildPDF(pages) {
 async function makePdfFile() {
   const out = [];
   for (let i = 0; i < state.pages.length; i++) {
-    busy(true, `Собираю PDF: ${i + 1} из ${state.pages.length}`); await sleep(10);
+    $('#expInfo').textContent = `Готовлю PDF: ${i + 1} из ${state.pages.length}…`; await sleep(10);
     const c = renderResult(state.pages[i]);
     const b = await toBlob(c, 'image/jpeg', 0.85);
     out.push({ jpg: new Uint8Array(await b.arrayBuffer()), w: c.width, h: c.height });
   }
-  const blob = buildPDF(out);
-  busy(false);
-  return blob;
+  return buildPDF(out);
+}
+// PDF собираем заранее, при открытии окна: иначе к моменту нажатия «Поделиться»
+// браузер уже считает, что жест пользователя устарел, и share() отказывает
+let pdfJob = 0;
+function prepPdf() {
+  const job = ++pdfJob, btns = [$('#btnShare'), $('#btnDownload')];
+  state.pdfBlob = null; btns.forEach(b => (b.disabled = true));
+  makePdfFile().then(blob => {
+    if (job !== pdfJob) return;
+    state.pdfBlob = blob; btns.forEach(b => (b.disabled = false));
+    $('#expInfo').textContent = `Страниц: ${state.pages.length}, размер ${(blob.size / 1048576).toFixed(1)} МБ`;
+  }).catch(e => { console.error(e); $('#expInfo').textContent = 'Ошибка сборки PDF'; });
 }
 function stamp() {
   const d = new Date(), z = n => String(n).padStart(2, '0');
@@ -461,32 +471,33 @@ const cleanName = s => (s.trim() || stamp()).replace(/[\\/:*?"<>|]+/g, '_').repl
 
 $('#btnDone').onclick = () => {
   $('#fname').value = stamp();
-  $('#expInfo').textContent = `Страниц: ${state.pages.length}`;
   $('#shExport').hidden = false;
+  prepPdf();
 };
-$('#btnShClose').onclick = () => { $('#shExport').hidden = true; };
-$('#shExport').addEventListener('click', e => { if (e.target.id === 'shExport') $('#shExport').hidden = true; });
+const closeExport = () => { $('#shExport').hidden = true; pdfJob++; state.pdfBlob = null; };
+$('#btnShClose').onclick = closeExport;
+$('#shExport').addEventListener('click', e => { if (e.target.id === 'shExport') closeExport(); });
 
-$('#btnShare').onclick = async () => {
-  try {
-    const blob = await makePdfFile();
-    const file = new File([blob], cleanName($('#fname').value), { type: 'application/pdf' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: file.name });
-    } else { downloadBlob(blob, file.name); toast('Поделиться не поддерживается, файл скачан'); }
-  } catch (e) { busy(false); if (e.name !== 'AbortError') { toast('Не удалось поделиться'); console.error(e); } }
+// без await до share(): иначе теряется «жест пользователя»
+$('#btnShare').onclick = () => {
+  const blob = state.pdfBlob; if (!blob) return;
+  const file = new File([blob], cleanName($('#fname').value), { type: 'application/pdf' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: file.name })
+      .catch(e => { if (e.name !== 'AbortError') { toast('Не удалось поделиться'); console.error(e); } });
+  } else { downloadBlob(blob, file.name); toast('Поделиться не поддерживается, файл скачан'); }
 };
 function downloadBlob(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 20000);
 }
-$('#btnDownload').onclick = async () => {
-  try { const blob = await makePdfFile(); downloadBlob(blob, cleanName($('#fname').value)); toast('Файл в Загрузках'); }
-  catch (e) { busy(false); toast('Ошибка сборки PDF'); console.error(e); }
+$('#btnDownload').onclick = () => {
+  if (!state.pdfBlob) return;
+  downloadBlob(state.pdfBlob, cleanName($('#fname').value)); toast('Файл в Загрузках');
 };
 $('#btnClear').onclick = async () => {
   if (!confirm('Удалить все страницы? Это нельзя отменить.')) return;
-  state.pages = []; await clearPages(); renderGrid(); $('#shExport').hidden = true;
+  state.pages = []; await clearPages(); renderGrid(); closeExport();
 };
 
 /* ---------- старт ---------- */

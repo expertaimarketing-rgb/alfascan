@@ -1,5 +1,5 @@
 'use strict';
-const V = 'alfascan-v2';
+const V = 'alfascan-v3';
 const SHELL = ['./', 'index.html', 'app.js', 'opencv.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
