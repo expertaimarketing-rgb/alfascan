@@ -397,8 +397,36 @@ $('#pgRot').onclick = async () => {
   const p = state.pages[state.view]; p.rot = (p.rot + 1) % 4;
   await refreshView(); savePage(p);
 };
-$('#pgPrev').onclick = () => { if (state.view > 0) { state.view--; refreshView(); } };
-$('#pgNext').onclick = () => { if (state.view < state.pages.length - 1) { state.view++; refreshView(); } };
+// «Раньше» / «Позже»: двигают страницу в списке; листать страницы можно свайпом по картинке
+async function saveOrder() {
+  try {
+    const db = await idb();
+    const tx = db.transaction('pages', 'readwrite'), st = tx.objectStore('pages');
+    state.pages.forEach((p, i) => {
+      p.order = i;
+      const rq = st.get(p.id);
+      rq.onsuccess = () => { if (rq.result) { rq.result.order = i; st.put(rq.result); } };
+    });
+  } catch (e) { console.warn('saveOrder', e); }
+}
+async function moveView(d) {
+  const i = state.view, j = i + d;
+  if (j < 0 || j >= state.pages.length) return;
+  const [p] = state.pages.splice(i, 1); state.pages.splice(j, 0, p);
+  state.view = j; await refreshView(); saveOrder();
+}
+$('#pgPrev').onclick = () => moveView(-1);
+$('#pgNext').onclick = () => moveView(1);
+(() => {
+  let x0 = null; const img = $('#pgImg');
+  img.addEventListener('pointerdown', e => { x0 = e.clientX; });
+  img.addEventListener('pointerup', e => {
+    if (x0 === null) return; const dx = e.clientX - x0; x0 = null;
+    if (Math.abs(dx) < 60) return;
+    const j = state.view + (dx < 0 ? 1 : -1);
+    if (j >= 0 && j < state.pages.length) { state.view = j; refreshView(); }
+  });
+})();
 $('#pgDel').onclick = async () => {
   const p = state.pages[state.view]; if (!p) return;
   if (!confirm('Удалить эту страницу?')) return;

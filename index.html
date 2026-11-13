@@ -94,7 +94,8 @@ input[type=text]{width:100%;padding:13px 14px;border-radius:12px;border:1px soli
 
 <section class="overlay" id="ovPage" hidden>
   <div class="ovh"><span id="pgTitle">Страница</span><button class="btn" id="pgClose">Закрыть</button></div>
-  <div class="stage"><img id="pgImg" alt=""></div>
+  <div class="stage"><img id="pgImg" alt="" draggable="false" style="user-select:none;-webkit-user-drag:none"></div>
+  <div class="hint" style="text-align:center;margin-top:-4px">Листать страницы: свайп по картинке</div>
   <div class="seg" id="pgModes">
     <button data-m="doc">Документ</button>
     <button data-m="gray">Серый</button>
@@ -102,8 +103,8 @@ input[type=text]{width:100%;padding:13px 14px;border-radius:12px;border:1px soli
     <button data-m="orig">Оригинал</button>
   </div>
   <div class="ovb">
-    <button class="btn" id="pgPrev">←</button>
-    <button class="btn" id="pgNext">→</button>
+    <button class="btn" id="pgPrev">← Раньше</button>
+    <button class="btn" id="pgNext">Позже →</button>
     <button class="btn" id="pgRot">Повернуть</button>
     <button class="btn" id="pgCrop">Края</button>
     <button class="btn danger" id="pgDel">Удалить</button>

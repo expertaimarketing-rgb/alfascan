@@ -1,5 +1,5 @@
 'use strict';
-const V = 'alfascan-v5';
+const V = 'alfascan-v6';
 const SHELL = ['./', 'index.html', 'app.js', 'opencv.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 // GitHub Pages отдаёт файлы с max-age=600: чтобы не получать устаревшие копии из HTTP-кеша
