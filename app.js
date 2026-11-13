@@ -271,7 +271,10 @@ async function nextInQueue() {
   try {
     const src = await fileToCanvas(f, WORK_MAX);
     busy(false);
-    if (!cvOk()) busy(true, 'Ищу края…');
+    if (!cvOk()) {
+      busy(true, 'Ищу края…');
+      await Promise.race([loadCV().catch(() => {}), sleep(10000)]); // ждём библиотеку, но не вечно
+    }
     await sleep(30);
     const pts = detectCorners(src);
     busy(false);
@@ -541,6 +544,24 @@ $('#btnGallery').onclick = () => $('#inGal').click();
 });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// фото, присланные через «Поделиться» из галереи (service worker кладёт их в кеш)
+async function takeShared() {
+  try {
+    if (!('caches' in window)) return;
+    const c = await caches.open('alfascan-share');
+    const keys = (await c.keys()).sort((a, b) => a.url.localeCompare(b.url));
+    if (!keys.length) return;
+    const files = [];
+    for (const k of keys) {
+      const r = await c.match(k); const b = await r.blob();
+      files.push(new File([b], decodeURIComponent(r.headers.get('X-Name') || 'photo.jpg'), { type: b.type }));
+      await c.delete(k);
+    }
+    if (location.search) history.replaceState(null, '', location.pathname);
+    takeFiles(files);
+  } catch (e) { console.warn('takeShared', e); }
+}
+
 renderGrid();
-restore().catch(console.warn);
+restore().catch(console.warn).then(takeShared);
 startCV();
