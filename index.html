@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<title>AlfaScan</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f4f5f7; --card:#fff; --text:#16181d; --muted:#6b7280; --line:#e3e6eb;
+  --accent:#1f6feb; --accent-t:#fff; --danger:#d1342f;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#101216; --card:#1a1d23; --text:#eceef2; --muted:#9aa1ad; --line:#2b2f37; --accent:#4d8dff; --accent-t:#0b1020; --danger:#ff6b66; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);overscroll-behavior:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.app{display:flex;flex-direction:column;height:100%;max-width:640px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 8px}
+header h1{margin:0;font-size:20px;letter-spacing:.2px}
+.chip{font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
+.chip.ok{color:#1a7f37}
+main{flex:1;overflow:auto;padding:8px 16px 120px}
+.empty{margin:18vh auto 0;text-align:center;color:var(--muted);max-width:280px}
+.empty b{display:block;color:var(--text);font-size:18px;margin-bottom:6px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.thumb{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center}
+.thumb img{max-width:100%;max-height:100%;display:block}
+.thumb .n{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.65);color:#fff;font-size:12px;border-radius:99px;padding:2px 8px}
+.bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:10px;justify-content:center;align-items:center;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%)}
+.bar .inner{display:flex;gap:10px;width:100%;max-width:608px;align-items:center}
+.btn{padding:14px 18px;border-radius:14px;background:var(--card);border:1px solid var(--line);font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.5}
+.grow{flex:1}
+.shutter{flex:1.4;font-size:17px;padding:16px}
+.overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;z-index:10}
+.overlay[hidden]{display:none}
+.ovh{padding:calc(12px + env(safe-area-inset-top)) 16px 8px;font-weight:700;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+.ovh small{font-weight:400;color:var(--muted)}
+.stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px;position:relative}
+.stage canvas,.stage img{max-width:100%;max-height:100%;touch-action:none;border-radius:6px;box-shadow:0 2px 14px rgba(0,0,0,.25)}
+.ovb{display:flex;gap:8px;padding:10px 16px calc(12px + env(safe-area-inset-bottom));flex-wrap:wrap}
+.seg{display:flex;gap:6px;padding:0 16px;flex-wrap:wrap}
+.seg button{padding:8px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);font-size:14px}
+.seg button.on{background:var(--accent);color:var(--accent-t);border-color:var(--accent)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet[hidden]{display:none}
+.sheet .box{background:var(--card);width:100%;max-width:640px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+.sheet h2{margin:0 0 4px;font-size:18px}
+input[type=text]{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
+.hint{color:var(--muted);font-size:13px}
+.busy{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:30;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600}
+.busy[hidden]{display:none}
+.toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#16181d;color:#fff;border-radius:12px;padding:10px 14px;font-size:14px;z-index:40;max-width:90%}
+.toast[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>AlfaScan</h1>
+    <span class="chip" id="cvChip">края: загрузка…</span>
+  </header>
+  <main id="main">
+    <div class="empty" id="empty"><b>Страниц пока нет</b>Нажмите «Снять» и сфотографируйте документ. Края найдутся сами, потом их можно поправить.</div>
+    <div class="grid" id="grid"></div>
+  </main>
+  <div class="bar"><div class="inner">
+    <button class="btn" id="btnGallery">Галерея</button>
+    <button class="btn primary shutter" id="btnShoot">Снять</button>
+    <button class="btn" id="btnDone" disabled>PDF</button>
+  </div></div>
+</div>
+
+<input type="file" id="inCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="inGal" accept="image/*" multiple hidden>
+
+<section class="overlay" id="ovEdit" hidden>
+  <div class="ovh"><span>Края документа</span><small id="edInfo"></small></div>
+  <div class="stage" id="edStage"><canvas id="edCanvas"></canvas></div>
+  <div class="ovb">
+    <button class="btn" id="edCancel">Отмена</button>
+    <button class="btn" id="edAuto">Авто</button>
+    <button class="btn primary grow" id="edOk">Готово</button>
+  </div>
+</section>
+
+<section class="overlay" id="ovPage" hidden>
+  <div class="ovh"><span id="pgTitle">Страница</span><button class="btn" id="pgClose">Закрыть</button></div>
+  <div class="stage"><img id="pgImg" alt=""></div>
+  <div class="seg" id="pgModes">
+    <button data-m="doc">Документ</button>
+    <button data-m="gray">Серый</button>
+    <button data-m="bw">Ч/Б</button>
+    <button data-m="orig">Оригинал</button>
+  </div>
+  <div class="ovb">
+    <button class="btn" id="pgPrev">←</button>
+    <button class="btn" id="pgNext">→</button>
+    <button class="btn" id="pgRot">Повернуть</button>
+    <button class="btn" id="pgCrop">Края</button>
+    <button class="btn danger" id="pgDel">Удалить</button>
+  </div>
+</section>
+
+<section class="sheet" id="shExport" hidden>
+  <div class="box">
+    <h2>Сохранить PDF</h2>
+    <input type="text" id="fname" autocomplete="off">
+    <div class="hint" id="expInfo"></div>
+    <button class="btn primary" id="btnShare">Поделиться (Telegram, Диск, почта)</button>
+    <button class="btn" id="btnDownload">Скачать на телефон</button>
+    <button class="btn danger" id="btnClear">Очистить все страницы</button>
+    <button class="btn" id="btnShClose">Закрыть</button>
+  </div>
+</section>
+
+<div class="busy" id="busy" hidden><span id="busyTxt">Обработка…</span></div>
+<div class="toast" id="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
