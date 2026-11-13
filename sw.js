@@ -1,5 +1,5 @@
 'use strict';
-const V = 'alfascan-v7';
+const V = 'alfascan-v8';
 const SHARE = 'alfascan-share'; // входящие фото из «Поделиться» (переживает обновления)
 const SHELL = ['./', 'index.html', 'app.js', 'opencv.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 

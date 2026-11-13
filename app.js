@@ -152,6 +152,21 @@ function warp(srcCanvas, pts) {
   return out;
 }
 
+// Во сколько раз осветлить страницу, чтобы бумага стала белой. Бумага занимает большую часть
+// листа, поэтому берём уровень, выше которого лежит самая светлая треть пикселей.
+function whiteScale(rgb) {
+  const cv = window.cv, g = new cv.Mat(), s = new cv.Mat();
+  try {
+    cv.cvtColor(rgb, g, cv.COLOR_RGB2GRAY);
+    cv.resize(g, s, new cv.Size(160, Math.max(1, Math.round(160 * g.rows / g.cols))), 0, 0, cv.INTER_AREA);
+    const hist = new Array(256).fill(0), d = s.data;
+    for (let i = 0; i < d.length; i++) hist[d[i]]++;
+    let acc = 0, wp = 255;
+    for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= d.length * 0.33) { wp = v; break; } }
+    return Math.min(2.0, Math.max(1.0, 250 / Math.max(wp, 1)));
+  } finally { g.delete(); s.delete(); }
+}
+
 /* фильтры: orig / doc / gray / bw */
 function applyFilter(base, mode) {
   if (mode === 'orig' || !cvOk()) return base;
@@ -172,11 +187,12 @@ function applyFilter(base, mode) {
     const flat = M(new cv.Mat());
     cv.divide(rgb, bg, flat, 255, -1);
     let out = M(new cv.Mat());
+    const k = whiteScale(flat);           // подтягиваем «бумагу» до белого (страницы с плотным текстом выходили серыми)
     if (mode === 'doc') {
-      flat.convertTo(out, -1, 1.12, -14);
+      flat.convertTo(out, -1, k, -8);
     } else {
       const g = M(new cv.Mat()); cv.cvtColor(flat, g, cv.COLOR_RGB2GRAY);
-      if (mode === 'gray') g.convertTo(out, -1, 1.15, -16);
+      if (mode === 'gray') g.convertTo(out, -1, k, -8);
       else cv.threshold(g, out, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
     }
     const c = mkCanvas(base.width, base.height);
